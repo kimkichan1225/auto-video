@@ -9,9 +9,6 @@ import { MainComposition } from "@/remotion/Composition";
 export default function Preview() {
   const project = useEditorStore((s) => s.project);
   const currentFrame = useEditorStore((s) => s.currentFrame);
-  const isPlaying = useEditorStore((s) => s.isPlaying);
-  const setCurrentFrame = useEditorStore((s) => s.setCurrentFrame);
-  const setPlaying = useEditorStore((s) => s.setPlaying);
   const playerRef = useRef<PlayerRef>(null);
   // Player에서 온 프레임 업데이트와 store가 유발하는 seek을 구분하기 위한 플래그
   const fromPlayerRef = useRef(false);
@@ -91,9 +88,6 @@ export default function Preview() {
           controls
           clickToPlay
           style={{ width: "100%", height: "100%" }}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
         />
       </div>
     </div>
