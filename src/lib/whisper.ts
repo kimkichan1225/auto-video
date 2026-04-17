@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 
 // Whisper STT 래퍼 — 단어 단위 타임스탬프 반환
 export interface WordTimestamp {
@@ -13,7 +13,8 @@ export async function transcribeWithTimestamps(
 ): Promise<{ text: string; words: WordTimestamp[]; duration: number }> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-  const file = new File([fileBuffer], filename, { type: "audio/mpeg" });
+  // OpenAI SDK의 toFile 헬퍼 사용 — Node Buffer를 업로드 가능한 형태로 안전하게 변환
+  const file = await toFile(fileBuffer, filename, { type: "audio/mpeg" });
 
   const res = await openai.audio.transcriptions.create({
     file,
