@@ -91,7 +91,6 @@ export default function Preview() {
           controls
           clickToPlay
           style={{ width: "100%", height: "100%" }}
-          acknowledgeRemotionLicense
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
