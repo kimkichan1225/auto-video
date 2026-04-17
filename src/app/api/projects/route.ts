@@ -27,11 +27,6 @@ export async function POST(req: Request) {
   if (error || !data) {
     return NextResponse.json({ message: error?.message }, { status: 500 });
   }
-  return NextResponse.redirect(
-    new URL(
-      `/editor/${data.id}`,
-      process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-    ),
-    303,
-  );
+  // 배포 환경에서도 올바른 도메인으로 리다이렉트하도록 요청 자체의 origin 사용
+  return NextResponse.redirect(new URL(`/editor/${data.id}`, req.url), 303);
 }
