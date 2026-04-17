@@ -3,6 +3,8 @@ import { supabaseAdmin, STORAGE_BUCKETS } from "@/lib/supabase";
 import { transcribeWithTimestamps, groupWordsIntoSubtitles } from "@/lib/whisper";
 import { randomUUID } from "crypto";
 
+export const maxDuration = 60;
+
 // 오디오 에셋 → Whisper STT → 자막 클립으로 변환 → 프로젝트 timeline에 추가
 export async function POST(req: Request) {
   const { projectId, assetId } = await req.json();

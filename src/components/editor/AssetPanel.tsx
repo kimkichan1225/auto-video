@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useEditorStore } from "@/store/editorStore";
+import { supabaseBrowser } from "@/lib/supabase";
 import type { Asset, AudioClip, Clip, Track } from "@/types/project";
 import { uid } from "@/lib/utils";
 
@@ -21,18 +22,60 @@ export default function AssetPanel() {
 
   if (!project) return null;
 
+  // 브라우저에서 Supabase Storage로 직접 업로드 (Vercel 4.5MB 요청 바디 제한 우회)
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!project) return;
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("projectId", project.id);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (data.asset) addAsset(data.asset as Asset);
+      const supabase = supabaseBrowser();
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${project.id}/${Date.now()}_${safeName}`;
+
+      // 1) Storage 업로드
+      const { error: upErr } = await supabase.storage
+        .from("assets")
+        .upload(path, file, { contentType: file.type });
+      if (upErr) throw upErr;
+
+      // 2) assets 테이블에 메타 insert
+      const type = file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+          ? "video"
+          : file.type.startsWith("audio/")
+            ? "audio"
+            : null;
+      if (!type) throw new Error("지원하지 않는 파일 형식");
+
+      const { data: asset, error: dbErr } = await supabase
+        .from("assets")
+        .insert({
+          project_id: project.id,
+          type,
+          name: file.name,
+          storage_path: path,
+        })
+        .select("*")
+        .single();
+      if (dbErr || !asset) throw dbErr ?? new Error("DB 저장 실패");
+
+      // 3) 공개 URL
+      const { data: urlData } = supabase.storage
+        .from("assets")
+        .getPublicUrl(path);
+
+      addAsset({
+        id: asset.id,
+        projectId: asset.project_id,
+        type: asset.type,
+        name: asset.name,
+        storagePath: asset.storage_path,
+        url: urlData.publicUrl,
+      });
+    } catch (err: any) {
+      alert(`업로드 실패: ${err.message ?? err}`);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

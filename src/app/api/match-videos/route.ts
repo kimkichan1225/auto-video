@@ -11,6 +11,9 @@ import {
   type MatchResult,
 } from "@/lib/gemini";
 
+// Vercel Hobby: 기본 10초 → 최대 60초까지 확장
+export const maxDuration = 60;
+
 // 참고 영상들을 Gemini에 업로드하고, 프로젝트의 자막 라인별로 매칭되는 영상 구간을 찾아
 // 타임라인의 영상 트랙에 VideoClip으로 배치한다.
 export async function POST(req: Request) {

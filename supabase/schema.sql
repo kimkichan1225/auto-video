@@ -62,3 +62,20 @@ create trigger trg_renders_updated before update on public.renders
 alter table public.projects disable row level security;
 alter table public.assets disable row level security;
 alter table public.renders disable row level security;
+
+-- Storage 버킷에 대한 anon 업로드/삭제 허용 (브라우저 직접 업로드용)
+-- 주의: MVP/개인 테스트용. 상용 서비스에서는 auth.uid() 기반 정책으로 바꿔야 함
+do $$ begin
+  create policy "anon upload to assets" on storage.objects
+    for insert to anon with check (bucket_id = 'assets');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "anon delete from assets" on storage.objects
+    for delete to anon using (bucket_id = 'assets');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "anon upload to renders" on storage.objects
+    for insert to anon with check (bucket_id = 'renders');
+exception when duplicate_object then null; end $$;

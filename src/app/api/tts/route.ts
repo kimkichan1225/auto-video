@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKETS } from "@/lib/supabase";
 import { typecastSynthesize } from "@/lib/typecast";
 
+export const maxDuration = 60;
+
 // Typecast TTS 생성 → Storage 업로드 → assets 테이블 insert
 export async function POST(req: Request) {
   const { projectId, text, voiceId } = await req.json();

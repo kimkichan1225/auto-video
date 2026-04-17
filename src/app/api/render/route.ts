@@ -5,9 +5,20 @@ import fs from "fs/promises";
 import os from "os";
 
 // Remotion 서버 렌더링
-// 주의: @remotion/renderer는 헤드리스 Chrome을 실행하므로 개발 초기엔
-// 로컬에서만 동작 가능. 프로덕션은 Remotion Lambda / 별도 워커 서비스 권장.
+// Vercel 서버리스 환경에서는 동작하지 않음 (헤드리스 Chrome + ffmpeg 필요,
+// 번들 크기/실행 시간 제한). 배포 시에는 별도 렌더 서버(Railway 등)가 필요.
+// 로컬 개발 환경에서만 실제 렌더가 동작하도록 가드.
 export async function POST(req: Request) {
+  if (process.env.VERCEL) {
+    return NextResponse.json(
+      {
+        message:
+          "MP4 내보내기는 현재 로컬 환경에서만 지원됩니다. 배포 서버에서는 별도 렌더 서비스(Railway 등)가 필요합니다.",
+      },
+      { status: 501 },
+    );
+  }
+
   const { projectId } = await req.json();
   if (!projectId) {
     return NextResponse.json({ message: "projectId 필요" }, { status: 400 });
@@ -106,10 +117,7 @@ export async function POST(req: Request) {
       },
       onProgress: async ({ progress }) => {
         if (render) {
-          await supabase
-            .from("renders")
-            .update({ progress })
-            .eq("id", render.id);
+          await supabase.from("renders").update({ progress }).eq("id", render.id);
         }
       },
     });
