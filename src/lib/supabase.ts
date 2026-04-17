@@ -1,14 +1,11 @@
-import { createBrowserClient, createServerClient } from "@supabase/ssr";
+// 서버(서버 컴포넌트 / 라우트 핸들러) 전용 Supabase 헬퍼
+// 브라우저 클라이언트가 필요하면 `@/lib/supabase-browser`의 supabaseBrowser를 사용할 것
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// 브라우저(클라이언트 컴포넌트) 전용
-export function supabaseBrowser() {
-  return createBrowserClient(url, anonKey);
-}
 
 // 서버 컴포넌트/라우트 핸들러 전용 (쿠키 기반)
 export function supabaseServer() {
@@ -30,7 +27,5 @@ export function supabaseAdmin() {
   });
 }
 
-export const STORAGE_BUCKETS = {
-  assets: "assets",
-  renders: "renders",
-} as const;
+// 호환을 위해 Storage 버킷 상수 재노출 (브라우저 파일에서 정의)
+export { STORAGE_BUCKETS } from "./supabase-browser";

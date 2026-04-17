@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useEditorStore } from "@/store/editorStore";
-import { supabaseBrowser } from "@/lib/supabase";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 import type { Asset, AudioClip, Clip, Track } from "@/types/project";
 import { uid } from "@/lib/utils";
 
