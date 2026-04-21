@@ -6,7 +6,10 @@ import AssetPanel from "@/components/editor/AssetPanel";
 import PreviewPanel from "@/components/editor/PreviewPanel";
 import PropertyPanel from "@/components/editor/PropertyPanel";
 import TimelinePanel from "@/components/editor/TimelinePanel";
-import StartScreen, { type StartMode } from "@/components/editor/StartScreen";
+import StartScreen, {
+  type StartAiPayload,
+  type StartMode,
+} from "@/components/editor/StartScreen";
 import { useProjectsStore } from "@/store/projectsStore";
 
 export default function EditorPage() {
@@ -22,15 +25,20 @@ export default function EditorPage() {
     );
   }
 
-  const handleStartChoice = (mode: StartMode) => {
-    updateProject(project.id, { initialized: true });
-    if (mode === "ai") {
-      // Phase 7에서 대본 입력 모달/패널 열기
-      console.log("AI로 시작 — Phase 7에서 대본 입력 연결 예정");
+  const handleStartChoice = (mode: StartMode, payload?: StartAiPayload) => {
+    const patch: Parameters<typeof updateProject>[1] = { initialized: true };
+    // 상품명을 프로젝트 이름으로 반영 (기본명인 경우에만)
+    if (payload?.productName && project.name === "새 프로젝트") {
+      patch.name = payload.productName;
+    }
+    updateProject(project.id, patch);
+
+    if (mode === "ai" && payload) {
+      // Phase 7~10에서 실제 파이프라인 연결 지점
+      console.log("AI 생성 payload:", payload);
     }
   };
 
-  // 아직 시작 방식을 선택 안 한 경우: 헤더 + 시작 화면
   if (!project.initialized) {
     return (
       <div className="flex h-full flex-col">
@@ -40,7 +48,6 @@ export default function EditorPage() {
     );
   }
 
-  // 기본 에디터 레이아웃
   return (
     <div className="flex h-full flex-col">
       <EditorHeader projectName={project.name} />

@@ -1,94 +1,156 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { generateMockScript } from "@/lib/mockScriptGenerator";
+import { mockVoices } from "@/lib/mockVoices";
+import ChooseStep from "./start/ChooseStep";
+import ProductInputStep from "./start/ProductInputStep";
+import ScriptReviewStep from "./start/ScriptReviewStep";
+import GeneratingStep from "./start/GeneratingStep";
 
 export type StartMode = "ai" | "empty";
 
+export interface StartAiPayload {
+  productName: string;
+  description: string;
+  script: string;
+  voiceId: string;
+  referenceVideoNames: string[]; // File 객체는 이후 처리 흐름에서만 쓰고, 상위로는 이름만 넘김
+}
+
+type Step = "choose" | "product-input" | "script-review" | "generating";
+
 interface Props {
-  onChoose: (mode: StartMode) => void;
+  onChoose: (mode: StartMode, payload?: StartAiPayload) => void;
 }
 
 export default function StartScreen({ onChoose }: Props) {
-  return (
-    <div className="flex flex-1 items-center justify-center bg-[#0f1115] p-6">
-      <div className="w-full max-w-3xl">
-        <div className="mb-10 text-center">
-          <h2 className="text-2xl font-bold text-white">어떻게 시작할까요?</h2>
-          <p className="mt-2 text-sm text-gray-400">
-            AI가 영상을 자동으로 만들어주거나, 빈 프로젝트에서 직접 편집할 수 있습니다.
-          </p>
-        </div>
+  const [step, setStep] = useState<Step>("choose");
+  const [mounted, setMounted] = useState(false);
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <StartCard
-            onClick={() => onChoose("ai")}
-            accent
-            icon={
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L9 9l-7 1 5 5-1.5 7L12 18.5 18.5 22 17 15l5-5-7-1z" />
-              </svg>
-            }
-            title="AI로 시작"
-            description="주제나 대본만 입력하면 대본·음성·자막·영상까지 자동으로 생성합니다."
-            badge="추천"
-          />
-          <StartCard
-            onClick={() => onChoose("empty")}
-            icon={
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            }
-            title="빈 프로젝트로 시작"
-            description="직접 파일을 업로드하고 타임라인에서 편집합니다."
-          />
-        </div>
-      </div>
+  // 각 단계 입력 상태
+  const [productName, setProductName] = useState("");
+  const [description, setDescription] = useState("");
+  const [script, setScript] = useState("");
+  const [voiceId, setVoiceId] = useState(mockVoices[0].id);
+  const [referenceVideos, setReferenceVideos] = useState<File[]>([]);
+
+  // 최초 마운트 애니메이션 트리거
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 30);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Step 2 → Step 3: 가짜 대본 생성
+  const handleGenerateScript = async () => {
+    await new Promise((r) => setTimeout(r, 1200));
+    setScript(generateMockScript(productName, description));
+    setStep("script-review");
+  };
+
+  // Step 3 → Step 4: 실제 생성 진행 화면으로
+  const handleStartGenerating = () => {
+    setStep("generating");
+  };
+
+  // Step 4 완료 → 에디터 진입
+  const handleGenerateComplete = () => {
+    onChoose("ai", {
+      productName,
+      description,
+      script,
+      voiceId,
+      referenceVideoNames: referenceVideos.map((f) => f.name),
+    });
+  };
+
+  const stepOrder: Step[] = ["choose", "product-input", "script-review", "generating"];
+
+  return (
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#0f1115] p-6">
+      <StepLayer step="choose" currentStep={step} stepOrder={stepOrder} initialMounted={mounted}>
+        <ChooseStep
+          mounted={mounted && step === "choose"}
+          onChooseAi={() => setStep("product-input")}
+          onChooseEmpty={() => onChoose("empty")}
+        />
+      </StepLayer>
+
+      <StepLayer step="product-input" currentStep={step} stepOrder={stepOrder}>
+        <ProductInputStep
+          visible={step === "product-input"}
+          productName={productName}
+          description={description}
+          onProductNameChange={setProductName}
+          onDescriptionChange={setDescription}
+          onBack={() => setStep("choose")}
+          onNext={handleGenerateScript}
+        />
+      </StepLayer>
+
+      <StepLayer step="script-review" currentStep={step} stepOrder={stepOrder}>
+        <ScriptReviewStep
+          script={script}
+          voiceId={voiceId}
+          referenceVideos={referenceVideos}
+          onScriptChange={setScript}
+          onVoiceChange={setVoiceId}
+          onVideosChange={setReferenceVideos}
+          onBack={() => setStep("product-input")}
+          onGenerate={handleStartGenerating}
+        />
+      </StepLayer>
+
+      <StepLayer step="generating" currentStep={step} stepOrder={stepOrder}>
+        <GeneratingStep
+          visible={step === "generating"}
+          hasReferenceVideos={referenceVideos.length > 0}
+          onComplete={handleGenerateComplete}
+        />
+      </StepLayer>
     </div>
   );
 }
 
-interface CardProps {
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  accent?: boolean;
-  badge?: string;
-}
+// 개별 단계 레이어: 현재 단계를 기준으로 좌/우 슬라이드 방향 결정
+function StepLayer({
+  step,
+  currentStep,
+  stepOrder,
+  initialMounted = true,
+  children,
+}: {
+  step: Step;
+  currentStep: Step;
+  stepOrder: Step[];
+  initialMounted?: boolean;
+  children: React.ReactNode;
+}) {
+  const visible = step === currentStep;
+  const selfIdx = stepOrder.indexOf(step);
+  const currentIdx = stepOrder.indexOf(currentStep);
 
-function StartCard({ onClick, icon, title, description, accent, badge }: CardProps) {
+  // 보이는 단계: 초기 마운트 전엔 살짝 아래(choose의 fade-up 효과 유지)
+  let classes: string;
+  if (visible) {
+    classes = initialMounted ? "opacity-100 translate-x-0 translate-y-0" : "opacity-0 translate-y-4";
+  } else if (selfIdx < currentIdx) {
+    // 과거 단계: 왼쪽으로 빠짐
+    classes = "pointer-events-none opacity-0 -translate-x-8";
+  } else {
+    // 미래 단계: 오른쪽에서 대기
+    classes = "pointer-events-none opacity-0 translate-x-8";
+  }
+
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        "group relative flex flex-col items-start gap-3 rounded-xl border p-6 text-left transition",
-        accent
-          ? "border-accent/40 bg-accent/5 hover:border-accent hover:bg-accent/10"
-          : "border-border bg-panel hover:border-gray-500 hover:bg-panelAlt"
+        "absolute inset-0 flex items-center justify-center p-6 transition-all duration-500 ease-out",
+        classes
       )}
     >
-      {badge && (
-        <span className="absolute right-4 top-4 rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
-          {badge}
-        </span>
-      )}
-      <div
-        className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-lg transition",
-          accent
-            ? "bg-accent/20 text-accent group-hover:bg-accent group-hover:text-white"
-            : "bg-panelAlt text-gray-300 group-hover:bg-border"
-        )}
-      >
-        {icon}
-      </div>
-      <div>
-        <h3 className="text-base font-semibold text-white">{title}</h3>
-        <p className="mt-1 text-sm leading-relaxed text-gray-400">{description}</p>
-      </div>
-    </button>
+      {children}
+    </div>
   );
 }
