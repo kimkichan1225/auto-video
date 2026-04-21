@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ProjectCard from "@/components/home/ProjectCard";
 import NewProjectModal from "@/components/home/NewProjectModal";
+import SettingsButton from "@/components/settings/SettingsButton";
+import SettingsModal from "@/components/settings/SettingsModal";
 import { useProjectsStore } from "@/store/projectsStore";
 import type { AspectRatio, Project } from "@/types/project";
 
@@ -13,6 +15,7 @@ export default function HomePage() {
   const addProject = useProjectsStore((s) => s.addProject);
   const removeProject = useProjectsStore((s) => s.removeProject);
   const [modalOpen, setModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleCreate = (payload: { name: string; aspectRatio: AspectRatio }) => {
     const now = new Date().toISOString();
@@ -41,15 +44,18 @@ export default function HomePage() {
       <header className="sticky top-0 z-10 border-b border-border bg-[#16181d]/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <h1 className="text-lg font-bold text-white">Booggum Tool</h1>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accentHover"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            새 프로젝트
-          </button>
+          <div className="flex items-center gap-2">
+            <SettingsButton onClick={() => setSettingsOpen(true)} />
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accentHover"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              새 프로젝트
+            </button>
+          </div>
         </div>
       </header>
 
@@ -84,6 +90,8 @@ export default function HomePage() {
         onClose={() => setModalOpen(false)}
         onCreate={handleCreate}
       />
+
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </main>
   );
 }

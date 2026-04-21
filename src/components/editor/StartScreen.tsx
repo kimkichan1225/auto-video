@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { generateMockScript } from "@/lib/mockScriptGenerator";
+import { generateScript } from "@/lib/openai";
 import { mockVoices } from "@/lib/mockVoices";
+import { useSettingsStore } from "@/store/settingsStore";
 import ChooseStep from "./start/ChooseStep";
 import ProductInputStep from "./start/ProductInputStep";
 import ScriptReviewStep from "./start/ScriptReviewStep";
-import GeneratingStep from "./start/GeneratingStep";
+import GeneratingStep, {
+  type GeneratedParagraphAudio,
+  type GenerationResult,
+  type TimelineSubtitle,
+} from "./start/GeneratingStep";
 
 export type StartMode = "ai" | "empty";
 
@@ -15,8 +20,10 @@ export interface StartAiPayload {
   productName: string;
   description: string;
   script: string;
-  voiceId: string;
-  referenceVideoNames: string[]; // File 객체는 이후 처리 흐름에서만 쓰고, 상위로는 이름만 넘김
+  voiceId: string; // 내부 id (v1, custom 등)
+  referenceVideoNames: string[];
+  audio: GeneratedParagraphAudio[];
+  subtitles: TimelineSubtitle[];
 }
 
 type Step = "choose" | "product-input" | "script-review" | "generating";
@@ -42,10 +49,21 @@ export default function StartScreen({ onChoose }: Props) {
     return () => clearTimeout(t);
   }, []);
 
-  // Step 2 → Step 3: 가짜 대본 생성
+  // Step 2 → Step 3: OpenAI로 실제 대본 생성
   const handleGenerateScript = async () => {
-    await new Promise((r) => setTimeout(r, 1200));
-    setScript(generateMockScript(productName, description));
+    const { openai } = useSettingsStore.getState();
+    if (!openai.apiKey.trim()) {
+      throw new Error(
+        "OpenAI API 키가 설정되어 있지 않습니다. 우측 상단 설정 아이콘에서 입력하세요."
+      );
+    }
+    const generated = await generateScript({
+      productName,
+      description,
+      apiKey: openai.apiKey,
+      model: openai.scriptModel,
+    });
+    setScript(generated);
     setStep("script-review");
   };
 
@@ -55,14 +73,21 @@ export default function StartScreen({ onChoose }: Props) {
   };
 
   // Step 4 완료 → 에디터 진입
-  const handleGenerateComplete = () => {
+  const handleGenerateComplete = (result: GenerationResult) => {
     onChoose("ai", {
       productName,
       description,
       script,
       voiceId,
       referenceVideoNames: referenceVideos.map((f) => f.name),
+      audio: result.audio,
+      subtitles: result.subtitles,
     });
+  };
+
+  // 생성 실패 시 대본 검토 단계로 복귀
+  const handleGenerateBack = () => {
+    setStep("script-review");
   };
 
   const stepOrder: Step[] = ["choose", "product-input", "script-review", "generating"];
@@ -105,8 +130,11 @@ export default function StartScreen({ onChoose }: Props) {
       <StepLayer step="generating" currentStep={step} stepOrder={stepOrder}>
         <GeneratingStep
           visible={step === "generating"}
+          script={script}
+          voiceInternalId={voiceId}
           hasReferenceVideos={referenceVideos.length > 0}
           onComplete={handleGenerateComplete}
+          onBack={handleGenerateBack}
         />
       </StepLayer>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import EditorHeader from "@/components/editor/EditorHeader";
 import AssetPanel from "@/components/editor/AssetPanel";
@@ -11,11 +12,32 @@ import StartScreen, {
   type StartMode,
 } from "@/components/editor/StartScreen";
 import { useProjectsStore } from "@/store/projectsStore";
+import { useEditorStore } from "@/store/editorStore";
+import { emptyTimeline } from "@/types/timeline";
+import { buildTimelineFromAudio } from "@/lib/mockAiGenerator";
 
 export default function EditorPage() {
   const params = useParams<{ id: string }>();
   const project = useProjectsStore((s) => s.getProject(params.id));
   const updateProject = useProjectsStore((s) => s.updateProject);
+  const loadTimeline = useEditorStore((s) => s.loadTimeline);
+  const resetTimeline = useEditorStore((s) => s.resetTimeline);
+  const editorProjectId = useEditorStore((s) => s.projectId);
+
+  // 프로젝트 전환 시 editorStore 초기화 (아직 내용 없으면 빈 타임라인으로)
+  useEffect(() => {
+    if (!project) return;
+    if (editorProjectId !== project.id) {
+      loadTimeline(project.id, emptyTimeline());
+    }
+  }, [project, editorProjectId, loadTimeline]);
+
+  // 언마운트 시 정리
+  useEffect(() => {
+    return () => {
+      resetTimeline();
+    };
+  }, [resetTimeline]);
 
   if (!project) {
     return (
@@ -27,16 +49,22 @@ export default function EditorPage() {
 
   const handleStartChoice = (mode: StartMode, payload?: StartAiPayload) => {
     const patch: Parameters<typeof updateProject>[1] = { initialized: true };
-    // 상품명을 프로젝트 이름으로 반영 (기본명인 경우에만)
     if (payload?.productName && project.name === "새 프로젝트") {
       patch.name = payload.productName;
     }
-    updateProject(project.id, patch);
 
+    // AI 선택 시 실제 TTS 오디오 + Whisper 자막으로 타임라인 구성
     if (mode === "ai" && payload) {
-      // Phase 7~10에서 실제 파이프라인 연결 지점
-      console.log("AI 생성 payload:", payload);
+      const timeline = buildTimelineFromAudio({
+        audio: payload.audio,
+        subtitles: payload.subtitles,
+        referenceVideoNames: payload.referenceVideoNames,
+      });
+      loadTimeline(project.id, timeline);
+      patch.durationSeconds = Math.ceil(timeline.durationSeconds);
     }
+
+    updateProject(project.id, patch);
   };
 
   if (!project.initialized) {

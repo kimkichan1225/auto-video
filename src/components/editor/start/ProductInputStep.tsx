@@ -22,6 +22,7 @@ export default function ProductInputStep({
   onNext,
 }: Props) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
   // 화면 진입 시 상품명 입력에 포커스
@@ -31,15 +32,24 @@ export default function ProductInputStep({
     return () => clearTimeout(t);
   }, [visible]);
 
+  // 입력이 바뀌면 이전 에러 지우기
+  useEffect(() => {
+    if (error) setError(null);
+  }, [productName, description]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const canSubmit = productName.trim().length > 0 && !loading;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    setError(null);
     setLoading(true);
     try {
       await onNext();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "대본 생성에 실패했습니다. 잠시 후 다시 시도하세요."
+      );
     } finally {
-      // 다음 단계로 이동한 뒤 돌아올 수 있으니 로딩은 해제
       setLoading(false);
     }
   };
@@ -95,6 +105,17 @@ export default function ProductInputStep({
           />
         </div>
       </div>
+
+      {error && (
+        <div className="mt-4 flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span className="leading-relaxed">{error}</span>
+        </div>
+      )}
 
       <div className="mt-6 flex justify-end">
         <button

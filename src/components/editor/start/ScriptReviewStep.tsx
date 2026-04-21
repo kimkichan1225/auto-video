@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { mockVoices, type Voice } from "@/lib/mockVoices";
+import { useSettingsStore } from "@/store/settingsStore";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -27,8 +28,22 @@ export default function ScriptReviewStep({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const typecastVoiceId = useSettingsStore((s) => s.typecast.voiceId);
 
-  const canGenerate = script.trim().length > 0 && voiceId.length > 0;
+  const selectedVoice = mockVoices.find((v) => v.id === voiceId);
+  const isCustomSelected = selectedVoice?.isCustom === true;
+  const isPresetWithoutId =
+    !!selectedVoice && !selectedVoice.isCustom && !selectedVoice.voiceId.trim();
+  const isCustomMissingSettings = isCustomSelected && !typecastVoiceId.trim();
+
+  const voiceWarning = isPresetWithoutId
+    ? "이 보이스는 아직 voice_id가 등록되지 않았습니다. src/lib/mockVoices.ts에서 값을 입력하거나 '직접 입력'을 선택하세요."
+    : isCustomMissingSettings
+      ? "설정에서 Typecast Voice ID를 먼저 입력하세요. (우상단 톱니바퀴)"
+      : null;
+
+  const canGenerate =
+    script.trim().length > 0 && !!selectedVoice && !voiceWarning;
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
@@ -73,16 +88,27 @@ export default function ScriptReviewStep({
       {/* 보이스 선택 */}
       <section className="mt-5">
         <label className="mb-2 block text-xs font-medium text-gray-400">보이스 선택</label>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {mockVoices.map((v) => (
             <VoiceCard
               key={v.id}
               voice={v}
               selected={voiceId === v.id}
               onClick={() => onVoiceChange(v.id)}
+              customValuePreview={v.isCustom ? typecastVoiceId : undefined}
             />
           ))}
         </div>
+        {voiceWarning && (
+          <div className="mt-2 flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-2.5 text-xs text-yellow-200">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span className="leading-relaxed">{voiceWarning}</span>
+          </div>
+        )}
       </section>
 
       {/* 참고 영상 업로드 */}
@@ -181,11 +207,17 @@ function VoiceCard({
   voice,
   selected,
   onClick,
+  customValuePreview,
 }: {
   voice: Voice;
   selected: boolean;
   onClick: () => void;
+  customValuePreview?: string;
 }) {
+  const needsSetup = voice.isCustom
+    ? !customValuePreview?.trim()
+    : !voice.voiceId.trim();
+
   return (
     <button
       onClick={onClick}
@@ -197,21 +229,39 @@ function VoiceCard({
       )}
     >
       <div className="flex items-center gap-2">
-        <div
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold",
-            voice.gender === "male"
-              ? "bg-blue-500/20 text-blue-300"
-              : "bg-pink-500/20 text-pink-300"
-          )}
-        >
-          {voice.gender === "male" ? "♂" : "♀"}
-        </div>
+        {voice.isCustom ? (
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-500/20 text-gray-300">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold",
+              voice.gender === "male"
+                ? "bg-blue-500/20 text-blue-300"
+                : "bg-pink-500/20 text-pink-300"
+            )}
+          >
+            {voice.gender === "male" ? "♂" : "♀"}
+          </div>
+        )}
         <span className={cn("text-sm font-semibold", selected ? "text-white" : "text-gray-200")}>
           {voice.name}
         </span>
+        {needsSetup && (
+          <span className="ml-auto rounded bg-yellow-500/15 px-1.5 py-0.5 text-[9px] font-medium text-yellow-300">
+            미설정
+          </span>
+        )}
       </div>
-      <span className="mt-1.5 text-[11px] text-gray-500">{voice.tone}</span>
+      <span className="mt-1.5 truncate text-[11px] text-gray-500">
+        {voice.isCustom && customValuePreview?.trim()
+          ? customValuePreview.slice(0, 16) + (customValuePreview.length > 16 ? "..." : "")
+          : voice.tone}
+      </span>
     </button>
   );
 }

@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import SettingsButton from "@/components/settings/SettingsButton";
+import SettingsModal from "@/components/settings/SettingsModal";
 
 interface Props {
   projectName: string;
@@ -8,6 +11,7 @@ interface Props {
 
 export default function EditorHeader({ projectName }: Props) {
   const router = useRouter();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-panel px-4">
@@ -29,6 +33,7 @@ export default function EditorHeader({ projectName }: Props) {
       </div>
 
       <div className="flex items-center gap-2">
+        <SettingsButton onClick={() => setSettingsOpen(true)} />
         <button className="rounded-md px-3 py-1.5 text-sm text-gray-300 transition hover:bg-panelAlt hover:text-white">
           저장
         </button>
@@ -36,6 +41,8 @@ export default function EditorHeader({ projectName }: Props) {
           내보내기
         </button>
       </div>
+
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </header>
   );
 }
